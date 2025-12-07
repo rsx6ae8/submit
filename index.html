@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Contact Form with EmailJS</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- EmailJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    // Initialize EmailJS with your Public Key
+    // 👉 Replace YOUR_PUBLIC_KEY_HERE with the one from EmailJS dashboard
+    (function () {
+      emailjs.init("AYD5T8NWO79lZ4Tqu");
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Essay Submission</h1>
+    <p>Fill in your name and message, then send it via EmailJS.</p>
+
+    <form id="form">
+      <label for="from_name">Your Name</label>
+      <!-- name attribute MUST match {{from_name}} in EmailJS template -->
+      <input
+        type="text"
+        id="from_name"
+        name="from_name"
+        placeholder="Enter your name"
+        required
+      />
+
+      <label for="reply_to">Your Email (optional)</label>
+      <!-- name attribute can match {{reply_to}} in template if you add it -->
+      <input
+        type="email"
+        id="reply_to"
+        name="reply_to"
+        placeholder="Enter your email"
+      />
+
+      <label for="message">Message</label>
+      <!-- name attribute MUST match {{message}} in EmailJS template -->
+      <textarea
+        id="message"
+        name="message"
+        placeholder="Type your message here..."
+        required
+      ></textarea>
+
+      <input type="submit" id="button" value="Send Email" />
+    </form>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
