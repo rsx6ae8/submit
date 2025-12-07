@@ -1,102 +1,62 @@
-  // 👉 Replace these with your actual IDs from EmailJS
-  const serviceID = "service_wq8c2qm";   // e.g. "service_abc123"
-  const templateID = "template_bqrwyjs"; // e.g. "template_bqrwyjs"
+/************************************************
+ * CONFIG / KEYS – ALL SETTINGS AT THE TOP
+ ************************************************/
+const WEB3FORMS_ACCESS_KEY = "bfcc4445-cda2-4b11-b0e7-a45796eb6979"; // <-- replace with your real key
+const WEB3FORMS_ENDPOINT   = "https://api.web3forms.com/submit";
+const EMAIL_SUBJECT_LINE   = "New message from your website";
 
+/************************************************
+ * jQuery SCRIPT
+ ************************************************/
+$(document).ready(function () {
+    // Put config values into hidden inputs
+    $("#access_key").val(WEB3FORMS_ACCESS_KEY);
+    $("#subject").val(EMAIL_SUBJECT_LINE);
 
-/***********************
- *  FORM ELEMENTS
- ***********************/
-const btn       = document.getElementById("button");
-const form      = document.getElementById("form");
-const statusBox = document.getElementById("status");
-const messageField = document.getElementById("message");
+    $("#contactForm").on("submit", function (e) {
+        e.preventDefault();
 
+        const $form      = $(this);
+        const $status    = $("#status");
+        const $submitBtn = $("#submitBtn");
 
-/*****************************************
- *  BLOCK PASTE + LIMIT TYPING SPEED
- *****************************************/
+        // ===== Make email OPTIONAL =====
+        // If user leaves email empty, send a placeholder string
+        const emailVal = $("#email").val().trim();
+        if (emailVal === "") {
+            $("#email").val("(no email provided)");
+        }
 
-// configure max typing speed
-// (characters per second)
-const MAX_CHARS_PER_SECOND = 5;
+        $status.removeClass("success error").text("");
+        $submitBtn.prop("disabled", true).text("Sending...");
 
-let charsTypedInWindow = 0;
-let windowStartTime = 0;
-
-// 1) block paste
-messageField.addEventListener("paste", (event) => {
-  event.preventDefault();
-  alert("Pasting is disabled. Please type normally.");
-});
-
-// 2) limit typing speed
-messageField.addEventListener("beforeinput", (event) => {
-  // ignore non-insertions (delete, arrow keys, etc.)
-  if (event.inputType !== "insertText") return;
-
-  const now = Date.now();
-
-  // start or reset our 1-second window
-  if (windowStartTime === 0 || now - windowStartTime > 1000) {
-    windowStartTime = now;
-    charsTypedInWindow = 0;
-  }
-
-  // number of chars being inserted
-  const newChars = event.data ? event.data.length : 1;
-  charsTypedInWindow += newChars;
-
-  if (charsTypedInWindow > MAX_CHARS_PER_SECOND) {
-    event.preventDefault();
-    statusBox.textContent = `Typing too fast — max ${MAX_CHARS_PER_SECOND} chars/sec.`;
-    statusBox.className = "status error";
-  } else {
-    statusBox.textContent = "";
-    statusBox.className = "status";
-  }
-});
-
-
-/*****************************************
- *  SEND EMAIL (EmailJS sendForm)
- *****************************************/
-form.addEventListener("submit", function (event) {
-  event.preventDefault();
-
-  const nameValue = form.from_name.value.trim();
-  const messageValue = form.message.value.trim();
-
-  if (!nameValue || !messageValue) {
-    statusBox.textContent = "Please enter both name and message.";
-    statusBox.className = "status error";
-    return;
-  }
-
-  btn.value = "Sending...";
-  btn.disabled = true;
-  statusBox.textContent = "";
-  statusBox.className = "status";
-
-  // initialize EmailJS once here
-  emailjs.init(EMAILJS_PUBLIC_KEY);
-
-  // send everything from <form ...>
-  emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, this)
-    .then(() => {
-      btn.value = "Send Email";
-      btn.disabled = false;
-      statusBox.textContent = "Message sent successfully!";
-      statusBox.className = "status success";
-
-      form.reset();
-      windowStartTime = 0;
-      charsTypedInWindow = 0;
-    })
-    .catch((err) => {
-      console.error("EmailJS error:", err);
-      btn.value = "Send Email";
-      btn.disabled = false;
-      statusBox.textContent = "Failed to send message. Check console.";
-      statusBox.className = "status error";
+        $.ajax({
+            url: WEB3FORMS_ENDPOINT,
+            type: "POST",
+            data: $form.serialize(),   // serialize form data
+            dataType: "json",
+            success: function (response) {
+                if (response && response.success) {
+                    $status
+                        .addClass("success")
+                        .text("✅ Your message has been sent successfully!");
+                    $form.trigger("reset");
+                } else {
+                    console.log(response);
+                    $status
+                        .addClass("error")
+                        .text("❌ Something went wrong. Please try again.");
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+                $status
+                    .addClass("error")
+                    .text("❌ Network or server error. Please try again.");
+            },
+            complete: function () {
+                $submitBtn.prop("disabled", false).text("Send Message");
+            }
+        });
     });
 });
