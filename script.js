@@ -7,6 +7,9 @@ const WEB3FORMS_ENDPOINT   = "https://api.web3forms.com/submit";
 // localStorage key for auto-saving the message box
 const MESSAGE_STORAGE_KEY  = "contactform_message_draft";
 
+// threshold for detecting "paste-like" chunks (Android keyboards etc.)
+const PASTE_DETECT_THRESHOLD = 8; // characters added at once
+
 /************************************************/
 
 const form   = document.getElementById("contactForm");
@@ -19,7 +22,7 @@ if (accessKeyInput) {
 }
 
 /************************************************
- * Auto-save for the message textarea
+ * Auto-save + paste blocking for the message textarea
  ************************************************/
 const messageField = document.querySelector('textarea[name="message"]');
 
@@ -35,9 +38,7 @@ if (messageField) {
     localStorage.setItem(MESSAGE_STORAGE_KEY, messageField.value);
   });
 
-  /************************************************
-   * Block paste in the main message textarea
-   ************************************************/
+  // ---- Paste blocking: desktop + iOS (standard events) ----
 
   // Block right-click paste (context menu)
   messageField.addEventListener("contextmenu", function (e) {
@@ -53,10 +54,54 @@ if (messageField) {
     }
   });
 
-  // Block direct paste event
+  // Block standard paste event
   messageField.addEventListener("paste", function (e) {
     e.preventDefault();
     showWarning("Paste is disabled in this box. Please type your answer.");
+  });
+
+  // ---- Extra: Android / keyboard paste detection ----
+  // We keep a previous value and revert if a big chunk suddenly appears.
+  const pasteState = {
+    lastValue: messageField.value
+  };
+
+  // beforeinput: some browsers (incl. Android Chrome) mark paste as insertFromPaste
+  messageField.addEventListener("beforeinput", function (e) {
+    if (e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop") {
+      e.preventDefault();
+      showWarning("Paste is disabled in this box. Please type your answer.");
+    }
+  });
+
+  // input: detect sudden big insert and revert
+  messageField.addEventListener("input", function (e) {
+    const current = messageField.value;
+    const prev    = pasteState.lastValue;
+
+    // normal first run
+    if (prev === undefined) {
+      pasteState.lastValue = current;
+      return;
+    }
+
+    const delta = current.length - prev.length;
+
+    // Deletions or small edits are fine
+    if (delta <= 0 || delta <= PASTE_DETECT_THRESHOLD) {
+      pasteState.lastValue = current;
+      return;
+    }
+
+    // Large positive jump = likely paste on Android keyboard
+    messageField.value = prev; // revert change
+    pasteState.lastValue = prev; // keep previous
+    showWarning("Pasting large chunks is disabled. Please type your answer.");
+  });
+
+  // Keep lastValue updated also on keyup (in case of small normal edits)
+  messageField.addEventListener("keyup", function () {
+    pasteState.lastValue = messageField.value;
   });
 }
 

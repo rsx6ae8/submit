@@ -27,11 +27,14 @@
       <textarea 
           name="message"
           required
-          spellcheck="false"
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
+          spellcheck="false"
           data-gramm="false"
+          readonly
+          onfocus="this.removeAttribute('readonly');"
+          inputmode="text"
         ></textarea>
 
       <button type="submit">Send</button>
