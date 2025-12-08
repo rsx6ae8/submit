@@ -26,6 +26,7 @@ input, textarea, button {
 }
 
 textarea {
+  font-size: 18px;
   min-height: 500px;
 }
 
