@@ -1,62 +1,59 @@
 /************************************************
- * CONFIG / KEYS – ALL SETTINGS AT THE TOP
+ * CONFIG / KEYS – ON TOP
  ************************************************/
-const WEB3FORMS_ACCESS_KEY = "bfcc4445-cda2-4b11-b0e7-a45796eb6979"; // <-- replace with your real key
+const WEB3FORMS_ACCESS_KEY = "bfcc4445-cda2-4b11-b0e7-a45796eb6979";   // <-- Replace
 const WEB3FORMS_ENDPOINT   = "https://api.web3forms.com/submit";
-const EMAIL_SUBJECT_LINE   = "New message from your website";
+const WEB3FORMS_SUBJECT    = "New submission from your website";
 
-/************************************************
- * jQuery SCRIPT
- ************************************************/
-$(document).ready(function () {
-    // Put config values into hidden inputs
-    $("#access_key").val(WEB3FORMS_ACCESS_KEY);
-    $("#subject").val(EMAIL_SUBJECT_LINE);
+/************************************************/
 
-    $("#contactForm").on("submit", function (e) {
-        e.preventDefault();
+const form   = document.getElementById('contactForm');
+const result = document.getElementById('result');
 
-        const $form      = $(this);
-        const $status    = $("#status");
-        const $submitBtn = $("#submitBtn");
+// Put keys into hidden fields on page load
+document.querySelector('input[name="access_key"]').value = WEB3FORMS_ACCESS_KEY;
+document.querySelector('input[name="subject"]').value     = WEB3FORMS_SUBJECT;
 
-        // ===== Make email OPTIONAL =====
-        // If user leaves email empty, send a placeholder string
-        const emailVal = $("#email").val().trim();
-        if (emailVal === "") {
-            $("#email").val("(no email provided)");
-        }
+form.addEventListener('submit', function(e) {
+  e.preventDefault();
 
-        $status.removeClass("success error").text("");
-        $submitBtn.prop("disabled", true).text("Sending...");
+  result.style.display = "block";
+  result.innerHTML = "Sending...";
 
-        $.ajax({
-            url: WEB3FORMS_ENDPOINT,
-            type: "POST",
-            data: $form.serialize(),   // serialize form data
-            dataType: "json",
-            success: function (response) {
-                if (response && response.success) {
-                    $status
-                        .addClass("success")
-                        .text("✅ Your message has been sent successfully!");
-                    $form.trigger("reset");
-                } else {
-                    console.log(response);
-                    $status
-                        .addClass("error")
-                        .text("❌ Something went wrong. Please try again.");
-                }
-            },
-            error: function (xhr, status, error) {
-                console.error(error);
-                $status
-                    .addClass("error")
-                    .text("❌ Network or server error. Please try again.");
-            },
-            complete: function () {
-                $submitBtn.prop("disabled", false).text("Send Message");
-            }
-        });
-    });
+  // OPTIONAL email support
+  const emailField = document.getElementById("email");
+  if (emailField && emailField.value.trim() === "") {
+    emailField.value = "(no email provided)";
+  }
+
+  const formData = new FormData(form);
+  const object   = Object.fromEntries(formData);
+  const jsonBody = JSON.stringify(object);
+
+  fetch(WEB3FORMS_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: jsonBody
+  })
+  .then(async (response) => {
+    let json = await response.json();
+    if (response.ok) {
+      result.innerHTML = json.message;
+    } else {
+      result.innerHTML = json.message;
+    }
+  })
+  .catch(error => {
+    console.error(error);
+    result.innerHTML = "Something went wrong!";
+  })
+  .finally(() => {
+    form.reset();
+    setTimeout(() => {
+      result.textContent = "";
+    }, 3000);
+  });
 });
