@@ -1,7 +1,7 @@
 /************************************************
  * CONFIG / KEYS – ON TOP
  ************************************************/
-const WEB3FORMS_ACCESS_KEY = "bfcc4445-cda2-4b11-b0e7-a45796eb6979";   // your real key
+const WEB3FORMS_ACCESS_KEY = "bfcc4445-cda2-4b11-b0e7-a45796eb6979";
 const WEB3FORMS_ENDPOINT   = "https://api.web3forms.com/submit";
 
 // localStorage key for auto-saving the message box
@@ -13,9 +13,11 @@ const PASTE_DETECT_THRESHOLD = 8; // characters added at once
 /************************************************/
 
 $(document).ready(function () {
-  const $form   = $("#contactForm");
-  const $result = $("#result");
+  const $form        = $("#contactForm");
+  const $result      = $("#result");
   const $messageField = $('textarea[name="message"]');
+
+  console.log("script.js loaded, jQuery ready.");
 
   // Put access key into hidden field on page load
   const $accessKeyInput = $('input[name="access_key"]');
@@ -27,26 +29,52 @@ $(document).ready(function () {
    * Auto-save + paste blocking for the message textarea
    ************************************************/
   if ($messageField.length) {
-    // Load saved draft if it exists
+    // ---- AUTO-SAVE ----
     const savedDraft = localStorage.getItem(MESSAGE_STORAGE_KEY);
     if (savedDraft !== null) {
       $messageField.val(savedDraft);
     }
 
-    // Save draft on every input change
+    const pasteState = {
+      lastValue: $messageField.val()
+    };
+
+    // auto-save + paste detection
     $messageField.on("input", function () {
-      localStorage.setItem(MESSAGE_STORAGE_KEY, $messageField.val());
+      const current = $messageField.val();
+      const prev    = pasteState.lastValue;
+
+      if (prev === undefined) {
+        pasteState.lastValue = current;
+        localStorage.setItem(MESSAGE_STORAGE_KEY, current);
+        return;
+      }
+
+      const delta = current.length - prev.length;
+
+      if (delta <= 0 || delta <= PASTE_DETECT_THRESHOLD) {
+        pasteState.lastValue = current;
+        localStorage.setItem(MESSAGE_STORAGE_KEY, current);
+        return;
+      }
+
+      // Large positive jump = likely paste
+      $messageField.val(prev);
+      pasteState.lastValue = prev;
+      showWarning("Pasting large chunks is disabled. Please type your answer.");
     });
 
-    // ---- Paste blocking: desktop + iOS (standard events) ----
+    $messageField.on("keyup", function () {
+      pasteState.lastValue = $messageField.val();
+    });
 
-    // Block right-click paste (context menu)
+    // Block context menu
     $messageField.on("contextmenu", function (e) {
       e.preventDefault();
       showWarning("Paste is disabled in this box. Please type your answer.");
     });
 
-    // Block keyboard paste shortcuts (Ctrl+V / Cmd+V)
+    // Block Ctrl+V / Cmd+V
     $messageField.on("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
@@ -54,55 +82,19 @@ $(document).ready(function () {
       }
     });
 
-    // Block standard paste event
+    // Block paste event
     $messageField.on("paste", function (e) {
       e.preventDefault();
       showWarning("Paste is disabled in this box. Please type your answer.");
     });
 
-    // ---- Extra: Android / keyboard paste detection ----
-    // Keep previous value and revert if a big chunk suddenly appears.
-    const pasteState = {
-      lastValue: $messageField.val()
-    };
-
-    // beforeinput: some browsers (incl. Android Chrome) mark paste as insertFromPaste
+    // Extra: beforeinput for insertFromPaste
     $messageField.on("beforeinput", function (e) {
       const ev = e.originalEvent || e;
-      if (ev.inputType === "insertFromPaste" || ev.inputType === "insertFromDrop") {
+      if (ev && (ev.inputType === "insertFromPaste" || ev.inputType === "insertFromDrop")) {
         e.preventDefault();
         showWarning("Paste is disabled in this box. Please type your answer.");
       }
-    });
-
-    // input: detect sudden big insert and revert
-    $messageField.on("input", function () {
-      const current = $messageField.val();
-      const prev    = pasteState.lastValue;
-
-      // normal first run
-      if (prev === undefined) {
-        pasteState.lastValue = current;
-        return;
-      }
-
-      const delta = current.length - prev.length;
-
-      // Deletions or small edits are fine
-      if (delta <= 0 || delta <= PASTE_DETECT_THRESHOLD) {
-        pasteState.lastValue = current;
-        return;
-      }
-
-      // Large positive jump = likely paste on Android keyboard
-      $messageField.val(prev);           // revert change
-      pasteState.lastValue = prev;       // keep previous
-      showWarning("Pasting large chunks is disabled. Please type your answer.");
-    });
-
-    // Keep lastValue updated also on keyup (for small normal edits)
-    $messageField.on("keyup", function () {
-      pasteState.lastValue = $messageField.val();
     });
   }
 
@@ -115,10 +107,21 @@ $(document).ready(function () {
   }
 
   /************************************************
-   * Submit handler – Web3Forms JSON
+   * Submit handler – Web3Forms JSON + CONFIRM
    ************************************************/
   $form.on("submit", function (e) {
     e.preventDefault();
+    console.log("Submit handler triggered.");
+
+    // 🔹 CONFIRMATION POP-UP – THIS MUST RUN FIRST
+    const confirmed = window.confirm(
+      "Are you sure you want to send your essay now?"
+    );
+    if (!confirmed) {
+      $result.show().text("Submission cancelled.");
+      console.log("User cancelled submission.");
+      return; // <- nothing is sent
+    }
 
     $result.show().html("Sending...");
 
@@ -156,7 +159,6 @@ $(document).ready(function () {
       })
       .finally(() => {
         $form.trigger("reset");
-        // clear saved draft after successful submit/reset
         localStorage.removeItem(MESSAGE_STORAGE_KEY);
 
         setTimeout(() => {
