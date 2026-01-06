@@ -28,6 +28,7 @@ input, textarea, button {
 textarea {
   font-size: 18px;
   min-height: 500px;
+  font-family: "Times New Roman", Times, serif;
 }
 
 button {

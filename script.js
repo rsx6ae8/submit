@@ -39,20 +39,14 @@ $(document).ready(function () {
       lastValue: $messageField.val()
     };
 
-    // auto-save + paste detection
+    // auto-save + paste detection .on attach event listener
     $messageField.on("input", function () {
       const current = $messageField.val();
       const prev    = pasteState.lastValue;
 
-      if (prev === undefined) {
-        pasteState.lastValue = current;
-        localStorage.setItem(MESSAGE_STORAGE_KEY, current);
-        return;
-      }
-
       const delta = current.length - prev.length;
 
-      if (delta <= 0 || delta <= PASTE_DETECT_THRESHOLD) {
+      if (delta <= PASTE_DETECT_THRESHOLD) {
         pasteState.lastValue = current;
         localStorage.setItem(MESSAGE_STORAGE_KEY, current);
         return;
@@ -107,6 +101,29 @@ $(document).ready(function () {
   }
 
   /************************************************
+   *tab
+   ************************************************/
+$messageField.on("keydown", function (e) {
+  if (e.key === "Tab") {
+    e.preventDefault();
+
+    const el = this;
+    const pos = el.selectionStart;
+
+    el.value =
+      el.value.slice(0, pos) +
+      "\t" +
+      el.value.slice(pos);
+
+    // move cursor after the tab
+    el.selectionStart = el.selectionEnd = pos + 1;
+  }
+});
+
+
+
+
+  /************************************************
    * Submit handler – Web3Forms JSON + CONFIRM
    ************************************************/
   $form.on("submit", function (e) {
@@ -158,8 +175,8 @@ $(document).ready(function () {
         $result.html("Something went wrong!");
       })
       .finally(() => {
-        $form.trigger("reset");
-        localStorage.removeItem(MESSAGE_STORAGE_KEY);
+        // $form.trigger("reset");
+        // localStorage.removeItem(MESSAGE_STORAGE_KEY);
 
         setTimeout(() => {
           $result.text("");
