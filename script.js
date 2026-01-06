@@ -103,6 +103,8 @@ $(document).ready(function () {
   /************************************************
    *tab
    ************************************************/
+const TAB_SPACES = 4;
+
 $messageField.on("keydown", function (e) {
   if (e.key === "Tab") {
     e.preventDefault();
@@ -110,17 +112,14 @@ $messageField.on("keydown", function (e) {
     const el = this;
     const pos = el.selectionStart;
 
-    el.value =
-      el.value.slice(0, pos) +
-      "\t" +
-      el.value.slice(pos);
+    const spaces = " ".repeat(TAB_SPACES);
 
-    // move cursor after the tab
-    el.selectionStart = el.selectionEnd = pos + 1;
+    el.value = el.value.slice(0, pos) + spaces + el.value.slice(pos);
+
+    // move cursor after inserted spaces
+    el.selectionStart = el.selectionEnd = pos + spaces.length;
   }
 });
-
-
 
 
   /************************************************
