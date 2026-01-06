@@ -101,25 +101,35 @@ $(document).ready(function () {
   }
 
   /************************************************
-   *tab
+   *tab and space
    ************************************************/
-const TAB_SPACES = 4;
+const NBSP = "\u00A0";
+const TAB_NBSP_COUNT = 4;
 
 $messageField.on("keydown", function (e) {
+  const el = this;
+  const pos = el.selectionStart;
+
+  // TAB → 4 NBSPs
   if (e.key === "Tab") {
     e.preventDefault();
 
-    const el = this;
-    const pos = el.selectionStart;
+    const indent = NBSP.repeat(TAB_NBSP_COUNT);
+    el.value = el.value.slice(0, pos) + indent + el.value.slice(pos);
+    el.selectionStart = el.selectionEnd = pos + TAB_NBSP_COUNT;
+    return;
+  }
 
-    const spaces = " ".repeat(TAB_SPACES);
+  // SPACE → 1 NBSP
+  if (e.key === " ") {
+    e.preventDefault();
 
-    el.value = el.value.slice(0, pos) + spaces + el.value.slice(pos);
-
-    // move cursor after inserted spaces
-    el.selectionStart = el.selectionEnd = pos + spaces.length;
+    el.value = el.value.slice(0, pos) + NBSP + el.value.slice(pos);
+    el.selectionStart = el.selectionEnd = pos + 1;
   }
 });
+
+
 
 
   /************************************************
