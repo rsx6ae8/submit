@@ -108,7 +108,6 @@ $(document).ready(function () {
    * TAB + SPACE → NBSP
    ************************************************/
   const NBSP = "\u00A0";
-
   $messageField.on("keydown", function (e) {
     const el = this;
     const pos = el.selectionStart;
@@ -122,13 +121,13 @@ $(document).ready(function () {
       syncDraftNow();
     }
 
-    if (e.key === " ") {
-      e.preventDefault();
-      bypassPasteCheck = true;
-      el.value = el.value.slice(0, pos) + NBSP + el.value.slice(end);
-      el.selectionStart = el.selectionEnd = pos + 1;
-      syncDraftNow();
-    }
+    // if (e.key === " ") {
+    //   e.preventDefault();
+    //   bypassPasteCheck = true;
+    //   el.value = el.value.slice(0, pos) + NBSP + el.value.slice(end);
+    //   el.selectionStart = el.selectionEnd = pos + 1;
+    //   syncDraftNow();
+    // }
   });
 
   /************************************************
@@ -193,7 +192,7 @@ $(document).ready(function () {
         $result.text("Submission failed.");
       })
       .finally(() => {
-        setTimeout(() => $result.text(""), 3000);
+        setTimeout(() => $result.text(""), 8000);
       });
   });
 });
