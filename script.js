@@ -7,161 +7,175 @@ const WEB3FORMS_ENDPOINT   = "https://api.web3forms.com/submit";
 // localStorage key for auto-saving the message box
 const MESSAGE_STORAGE_KEY  = "contactform_message_draft";
 
-// threshold for detecting "paste-like" chunks (Android keyboards etc.)
-const PASTE_DETECT_THRESHOLD = 8; // characters added at once
+// threshold for detecting "paste-like" chunks
+const PASTE_DETECT_THRESHOLD = 8;
 
 /************************************************/
 
 $(document).ready(function () {
-  const $form        = $("#contactForm");
-  const $result      = $("#result");
+  const $form         = $("#contactForm");
+  const $result       = $("#result");
   const $messageField = $('textarea[name="message"]');
 
-  console.log("script.js loaded, jQuery ready.");
+  const $undoBtn  = $("#undoBtn");
+  const $redoBtn  = $("#redoBtn");
+  const $clearBtn = $("#clearBtn");
 
-  // Put access key into hidden field on page load
-  const $accessKeyInput = $('input[name="access_key"]');
-  if ($accessKeyInput.length) {
-    $accessKeyInput.val(WEB3FORMS_ACCESS_KEY);
-  }
+  let bypassPasteCheck = false;
+
+  console.log("script.js loaded.");
 
   /************************************************
-   * Auto-save + paste blocking for the message textarea
+   * Insert access key
    ************************************************/
-  if ($messageField.length) {
-    // ---- AUTO-SAVE ----
-    const savedDraft = localStorage.getItem(MESSAGE_STORAGE_KEY);
-    if (savedDraft !== null) {
-      $messageField.val(savedDraft);
-    }
-
-    const pasteState = {
-      lastValue: $messageField.val()
-    };
-
-    // auto-save + paste detection .on attach event listener
-    $messageField.on("input", function () {
-      const current = $messageField.val();
-      const prev    = pasteState.lastValue;
-
-      const delta = current.length - prev.length;
-
-      if (delta <= PASTE_DETECT_THRESHOLD) {
-        pasteState.lastValue = current;
-        localStorage.setItem(MESSAGE_STORAGE_KEY, current);
-        return;
-      }
-
-      // Large positive jump = likely paste
-      $messageField.val(prev);
-      pasteState.lastValue = prev;
-      showWarning("Pasting large chunks is disabled. Please type your answer.");
-    });
-
-    $messageField.on("keyup", function () {
-      pasteState.lastValue = $messageField.val();
-    });
-
-    // Block context menu
-    $messageField.on("contextmenu", function (e) {
-      e.preventDefault();
-      showWarning("Paste is disabled in this box. Please type your answer.");
-    });
-
-    // Block Ctrl+V / Cmd+V
-    $messageField.on("keydown", function (e) {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "v" || e.key === "V")) {
-        e.preventDefault();
-        showWarning("Paste is disabled in this box. Please type your answer.");
-      }
-    });
-
-    // Block paste event
-    $messageField.on("paste", function (e) {
-      e.preventDefault();
-      showWarning("Paste is disabled in this box. Please type your answer.");
-    });
-
-    // Extra: beforeinput for insertFromPaste
-    $messageField.on("beforeinput", function (e) {
-      const ev = e.originalEvent || e;
-      if (ev && (ev.inputType === "insertFromPaste" || ev.inputType === "insertFromDrop")) {
-        e.preventDefault();
-        showWarning("Paste is disabled in this box. Please type your answer.");
-      }
-    });
-  }
+  $('input[name="access_key"]').val(WEB3FORMS_ACCESS_KEY);
 
   /************************************************
-   * Helper: show warning in the result area
+   * Helpers
    ************************************************/
   function showWarning(msg) {
-    if (!$result.length) return;
-    $result.show().text(msg);
+    if ($result.length) $result.show().text(msg);
+  }
+
+  const pasteState = { lastValue: "" };
+
+  function syncDraftNow() {
+    const v = $messageField.val();
+    pasteState.lastValue = v;
+    localStorage.setItem(MESSAGE_STORAGE_KEY, v);
   }
 
   /************************************************
-   *tab and space
+   * Restore saved draft
    ************************************************/
-const NBSP = "\u00A0";
-const TAB_NBSP_COUNT = 4;
-
-$messageField.on("keydown", function (e) {
-  const el = this;
-  const pos = el.selectionStart;
-
-  // TAB → 4 NBSPs
-  if (e.key === "Tab") {
-    e.preventDefault();
-
-    const indent = NBSP.repeat(TAB_NBSP_COUNT);
-    el.value = el.value.slice(0, pos) + indent + el.value.slice(pos);
-    el.selectionStart = el.selectionEnd = pos + TAB_NBSP_COUNT;
-    return;
+  const saved = localStorage.getItem(MESSAGE_STORAGE_KEY);
+  if (saved !== null) {
+    $messageField.val(saved);
   }
-
-  // SPACE → 1 NBSP
-  if (e.key === " ") {
-    e.preventDefault();
-
-    el.value = el.value.slice(0, pos) + NBSP + el.value.slice(pos);
-    el.selectionStart = el.selectionEnd = pos + 1;
-  }
-});
-
-
-
+  pasteState.lastValue = $messageField.val();
 
   /************************************************
-   * Submit handler – Web3Forms JSON + CONFIRM
+   * Paste blocking + autosave
+   ************************************************/
+  $messageField.on("input", function () {
+    const current = $messageField.val();
+    const prev = pasteState.lastValue;
+    const delta = current.length - prev.length;
+
+    if (bypassPasteCheck) {
+      bypassPasteCheck = false;
+      syncDraftNow();
+      return;
+    }
+
+    if (delta <= PASTE_DETECT_THRESHOLD) {
+      syncDraftNow();
+      return;
+    }
+
+    $messageField.val(prev);
+    showWarning("Pasting large chunks is disabled. Please type your answer.");
+  });
+
+  $messageField.on("paste contextmenu", e => {
+    e.preventDefault();
+    showWarning("Paste is disabled in this box.");
+  });
+
+  $messageField.on("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+      e.preventDefault();
+      showWarning("Paste is disabled.");
+    }
+  });
+
+  $messageField.on("beforeinput", e => {
+    const ev = e.originalEvent;
+    if (!ev) return;
+
+    if (ev.inputType === "historyUndo" || ev.inputType === "historyRedo") {
+      bypassPasteCheck = true;
+      return;
+    }
+
+    if (ev.inputType === "insertFromPaste" || ev.inputType === "insertFromDrop") {
+      e.preventDefault();
+      showWarning("Paste is disabled.");
+    }
+  });
+
+  /************************************************
+   * TAB + SPACE → NBSP
+   ************************************************/
+  const NBSP = "\u00A0";
+
+  $messageField.on("keydown", function (e) {
+    const el = this;
+    const pos = el.selectionStart;
+    const end = el.selectionEnd;
+
+    if (e.key === "Tab") {
+      e.preventDefault();
+      bypassPasteCheck = true;
+      el.value = el.value.slice(0, pos) + NBSP.repeat(4) + el.value.slice(end);
+      el.selectionStart = el.selectionEnd = pos + 4;
+      syncDraftNow();
+    }
+
+    if (e.key === " ") {
+      e.preventDefault();
+      bypassPasteCheck = true;
+      el.value = el.value.slice(0, pos) + NBSP + el.value.slice(end);
+      el.selectionStart = el.selectionEnd = pos + 1;
+      syncDraftNow();
+    }
+  });
+
+  /************************************************
+   * Undo / Redo buttons
+   ************************************************/
+  $undoBtn.on("click", () => {
+    bypassPasteCheck = true;
+    document.execCommand("undo");
+    setTimeout(syncDraftNow, 0);
+  });
+
+  $redoBtn.on("click", () => {
+    bypassPasteCheck = true;
+    document.execCommand("redo");
+    setTimeout(syncDraftNow, 0);
+  });
+
+  /************************************************
+   * Clear button
+   ************************************************/
+  $clearBtn.on("click", () => {
+    const confirmed = confirm("Clear all text? This cannot be undone.");
+    if (!confirmed) return;
+
+    bypassPasteCheck = true;
+    $messageField.val("");
+    syncDraftNow();
+    $messageField.focus();
+  });
+
+  /************************************************
+   * Submit handler
    ************************************************/
   $form.on("submit", function (e) {
     e.preventDefault();
-    console.log("Submit handler triggered.");
 
-    // 🔹 CONFIRMATION POP-UP – THIS MUST RUN FIRST
-    const confirmed = window.confirm(
-      "Are you sure you want to send your essay now?"
-    );
-    if (!confirmed) {
-      $result.show().text("Submission cancelled.");
-      console.log("User cancelled submission.");
-      return; // <- nothing is sent
+    if (!confirm("Are you sure you want to send your essay now?")) {
+      $result.text("Submission cancelled.");
+      return;
     }
 
-    $result.show().html("Sending...");
+    $result.text("Sending...");
 
-    const formData = new FormData(this);
-    const object   = Object.fromEntries(formData.entries());
-
-    // Dynamic subject using the name field
-    if (object.name) {
-      object.subject = `Message from ${object.name}`;
-    } else {
-      object.subject = "New submission from your website";
-    }
-
-    const jsonBody = JSON.stringify(object);
+    const data = Object.fromEntries(new FormData(this).entries());
+    data.subject = data.name
+      ? `Message from ${data.name}`
+      : "New submission from your website";
 
     fetch(WEB3FORMS_ENDPOINT, {
       method: "POST",
@@ -169,27 +183,17 @@ $messageField.on("keydown", function (e) {
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
-      body: jsonBody
+      body: JSON.stringify(data)
     })
-      .then(async (response) => {
-        const json = await response.json();
-        if (response.ok) {
-          $result.html(json.message || "Message sent successfully.");
-        } else {
-          $result.html(json.message || "Submission failed.");
-        }
+      .then(r => r.json())
+      .then(json => {
+        $result.text(json.message || "Submitted.");
       })
-      .catch((error) => {
-        console.error(error);
-        $result.html("Something went wrong!");
+      .catch(() => {
+        $result.text("Submission failed.");
       })
       .finally(() => {
-        // $form.trigger("reset");
-        // localStorage.removeItem(MESSAGE_STORAGE_KEY);
-
-        setTimeout(() => {
-          $result.text("");
-        }, 3000);
+        setTimeout(() => $result.text(""), 3000);
       });
   });
 });

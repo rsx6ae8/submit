@@ -25,6 +25,18 @@ input, textarea, button {
   margin-top: 4px;
 }
 
+.edit-toolbar {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.edit-toolbar button {
+  width: auto;
+  padding: 8px 14px;
+}
+
+
 textarea {
   font-size: 18px;
   min-height: 500px;
