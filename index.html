@@ -1,27 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Essay Submission</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=10" />
 </head>
+
 <body>
-    <div class="container">
-        <h1>Essay Submission</h1>
+  <div class="container">
+    <h1>Essay Submission</h1>
 
     <form id="contactForm">
-
       <!-- Keys auto-filled via JS -->
-      <input type="hidden" name="access_key">
-      <input type="hidden" name="subject">
+      <input type="hidden" name="access_key" />
+      <input type="hidden" name="subject" />
 
-      <!-- Your Name FIRST -->
       <label>Your Name*</label>
-      <input type="text" name="name" required>
+      <input type="text" name="name" required />
 
-      <!-- OPTIONAL email -->
       <label>Your Email*</label>
-      <input type="email" name="email" id="email" required>
+      <input type="email" name="email" id="email" required />
 
       <div class="edit-toolbar">
         <button type="button" id="undoBtn">Undo</button>
@@ -30,25 +28,35 @@
       </div>
 
       <label>Your Essay*</label>
-      <textarea 
-          name="message"
-          required
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          data-gramm="false"
-          readonly
-          onfocus="this.removeAttribute('readonly');"
-          inputmode="text"
-        ></textarea>
+      <textarea
+        name="message"
+        required
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        data-gramm="false"
+        readonly
+        onfocus="this.removeAttribute('readonly');"
+        inputmode="text"
+      ></textarea>
 
-      <button type="submit">Submit</button>
+      <button type="submit" id="submitBtn">Submit</button>
 
       <div id="result"></div>
     </form>
   </div>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="script.js?v=5"></script>
+
+  <!-- Centered Popup -->
+  <div id="popupOverlay" class="popup-overlay">
+    <div class="popup-box">
+      <h2 id="popupTitle">✅ Submission Successful</h2>
+      <p id="popupMessage">Your essay has been submitted successfully.</p>
+      <button type="button" id="closePopupBtn">OK</button>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="script.js?v=11"></script>
 </body>
 </html>

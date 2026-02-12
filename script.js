@@ -10,6 +10,9 @@ const MESSAGE_STORAGE_KEY  = "contactform_message_draft";
 // threshold for detecting "paste-like" chunks
 const PASTE_DETECT_THRESHOLD = 8;
 
+// sessionStorage flag (prevents popup showing again on refresh)
+const SUCCESS_SHOWN_KEY = "submission_success_shown";
+
 /************************************************/
 
 $(document).ready(function () {
@@ -17,9 +20,16 @@ $(document).ready(function () {
   const $result       = $("#result");
   const $messageField = $('textarea[name="message"]');
 
-  const $undoBtn  = $("#undoBtn");
-  const $redoBtn  = $("#redoBtn");
-  const $clearBtn = $("#clearBtn");
+  const $undoBtn   = $("#undoBtn");
+  const $redoBtn   = $("#redoBtn");
+  const $clearBtn  = $("#clearBtn");
+  const $submitBtn = $("#submitBtn");
+
+  // Popup elements
+  const $popupOverlay  = $("#popupOverlay");
+  const $popupTitle    = $("#popupTitle");
+  const $popupMessage  = $("#popupMessage");
+  const $closePopupBtn = $("#closePopupBtn");
 
   let bypassPasteCheck = false;
 
@@ -29,6 +39,26 @@ $(document).ready(function () {
    * Insert access key
    ************************************************/
   $('input[name="access_key"]').val(WEB3FORMS_ACCESS_KEY);
+
+  /************************************************
+   * Popup helpers (mouse-only)
+   ************************************************/
+  function openPopup(title, message) {
+    $popupTitle.text(title);
+    $popupMessage.text(message);
+    $popupOverlay.addClass("is-open");
+  }
+
+  function closePopup() {
+    $popupOverlay.removeClass("is-open");
+  }
+
+  $closePopupBtn.on("click", closePopup);
+
+  // Click outside the box closes popup
+  $popupOverlay.on("click", function (e) {
+    if (e.target === this) closePopup();
+  });
 
   /************************************************
    * Helpers
@@ -105,7 +135,7 @@ $(document).ready(function () {
   });
 
   /************************************************
-   * TAB + SPACE → NBSP
+   * TAB → NBSP
    ************************************************/
   const NBSP = "\u00A0";
   $messageField.on("keydown", function (e) {
@@ -120,14 +150,6 @@ $(document).ready(function () {
       el.selectionStart = el.selectionEnd = pos + 4;
       syncDraftNow();
     }
-
-    // if (e.key === " ") {
-    //   e.preventDefault();
-    //   bypassPasteCheck = true;
-    //   el.value = el.value.slice(0, pos) + NBSP + el.value.slice(end);
-    //   el.selectionStart = el.selectionEnd = pos + 1;
-    //   syncDraftNow();
-    // }
   });
 
   /************************************************
@@ -164,12 +186,16 @@ $(document).ready(function () {
   $form.on("submit", function (e) {
     e.preventDefault();
 
+    // ✅ Allow success popup again ONLY when submit is clicked again
+    sessionStorage.removeItem(SUCCESS_SHOWN_KEY);
+
     if (!confirm("Are you sure you want to send your essay now?")) {
       $result.text("Submission cancelled.");
       return;
     }
 
     $result.text("Sending...");
+    $submitBtn.prop("disabled", true).text("Sending...");
 
     const data = Object.fromEntries(new FormData(this).entries());
     data.subject = data.name
@@ -186,12 +212,28 @@ $(document).ready(function () {
     })
       .then(r => r.json())
       .then(json => {
-        $result.text(json.message || "Submitted.");
+        if (json && json.success) {
+          $result.text("");
+
+          if (!sessionStorage.getItem(SUCCESS_SHOWN_KEY)) {
+            openPopup(
+              "✅ Submission Successful",
+              "Your essay has been submitted successfully."
+            );
+            sessionStorage.setItem(SUCCESS_SHOWN_KEY, "true");
+          }
+        } else {
+          const msg = (json && json.message) ? json.message : "Submission failed.";
+          $result.text(msg);
+          openPopup("❌ Submission Failed", msg);
+        }
       })
       .catch(() => {
         $result.text("Submission failed.");
+        openPopup("❌ Submission Failed", "Network error. Please try again.");
       })
       .finally(() => {
+        $submitBtn.prop("disabled", false).text("Submit");
         setTimeout(() => $result.text(""), 8000);
       });
   });
